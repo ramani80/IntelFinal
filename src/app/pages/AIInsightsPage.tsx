@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Brain, TrendingUp, TrendingDown, AlertCircle, Award, Zap, Target, BarChart3 } from 'lucide-react';
+import { Brain, TrendingUp, TrendingDown, AlertCircle, Award, Zap, Target, BarChart3, Upload as UploadIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Button } from '../components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 interface Insight {
   id: number;
@@ -14,101 +16,231 @@ interface Insight {
   color: string;
 }
 
+interface Dataset {
+  filename: string;
+  uploadedAt: string;
+  columnNames: string[];
+  totalRows: number;
+  rows: any[];
+}
+
 export function AIInsightsPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [dataset, setDataset] = useState<Dataset | null>(null);
+  const [trendData, setTrendData] = useState<any[]>([]);
+  const [categoryData, setCategoryData] = useState<any[]>([]);
+  const navigate = useNavigate();
 
-  // Sample trend data
-  const trendData = [
-    { month: 'Jan', sales: 4000, revenue: 2400, growth: 1800 },
-    { month: 'Feb', sales: 3000, revenue: 1398, growth: 2100 },
-    { month: 'Mar', sales: 5000, revenue: 9800, growth: 2900 },
-    { month: 'Apr', sales: 7800, revenue: 3908, growth: 3200 },
-    { month: 'May', sales: 8900, revenue: 4800, growth: 3800 },
-    { month: 'Jun', sales: 9390, revenue: 3800, growth: 4300 },
-  ];
+  useEffect(() => {
+    const storedDataset = localStorage.getItem('dataset');
+    if (storedDataset) {
+      const data = JSON.parse(storedDataset);
+      setDataset(data);
+      generateInsights(data);
+    }
+  }, []);
 
-  const categoryData = [
-    { category: 'Electronics', value: 4500 },
-    { category: 'Clothing', value: 3200 },
-    { category: 'Food', value: 2800 },
-    { category: 'Books', value: 1900 },
-    { category: 'Sports', value: 2400 },
-  ];
+  const getNumericColumns = (data: Dataset) => {
+    if (!data || data.rows.length === 0) return [];
+    const firstRow = data.rows[0];
+    return data.columnNames.filter(col => !isNaN(parseFloat(firstRow[col])));
+  };
 
-  const generateInsights = () => {
+  const calculateStats = (data: Dataset, columnName: string) => {
+    if (!data) return { avg: 0, min: 0, max: 0, sum: 0, count: 0, median: 0 };
+    const values = data.rows
+      .map(row => parseFloat(row[columnName]))
+      .filter(val => !isNaN(val))
+      .sort((a, b) => a - b);
+
+    const sum = values.reduce((a, b) => a + b, 0);
+    const median = values.length > 0 ? values[Math.floor(values.length / 2)] : 0;
+
+    return {
+      avg: sum / values.length,
+      min: Math.min(...values),
+      max: Math.max(...values),
+      sum: sum,
+      count: values.length,
+      median: median,
+    };
+  };
+
+  const generateInsights = (data: Dataset) => {
     setIsGenerating(true);
     setTimeout(() => {
-      const generatedInsights: Insight[] = [
-        {
+      const numericCols = getNumericColumns(data);
+      const generatedInsights: Insight[] = [];
+
+      // Generate trend data from actual dataset
+      if (numericCols.length > 0) {
+        const firstNumCol = numericCols[0];
+        const secondNumCol = numericCols.length > 1 ? numericCols[1] : numericCols[0];
+
+        // Create trend chart data (sample 6 points)
+        const step = Math.floor(data.rows.length / 6) || 1;
+        const trends = [];
+        for (let i = 0; i < 6; i++) {
+          const index = Math.min(i * step, data.rows.length - 1);
+          trends.push({
+            month: `Point ${i + 1}`,
+            [firstNumCol]: parseFloat(data.rows[index][firstNumCol]) || 0,
+            [secondNumCol]: parseFloat(data.rows[index][secondNumCol]) || 0,
+          });
+        }
+        setTrendData(trends);
+
+        // Performance insight - highest performing column
+        let maxCol = numericCols[0];
+        let maxValue = calculateStats(data, maxCol).max;
+        numericCols.forEach(col => {
+          const stats = calculateStats(data, col);
+          if (stats.max > maxValue) {
+            maxValue = stats.max;
+            maxCol = col;
+          }
+        });
+
+        const maxStats = calculateStats(data, maxCol);
+        const avgValue = maxStats.avg;
+        const performancePercent = ((maxStats.max / avgValue - 1) * 100).toFixed(0);
+
+        generatedInsights.push({
           id: 1,
           type: 'performance',
-          title: 'Highest Performing Category',
-          description: 'Electronics category shows exceptional performance with 45% market share',
+          title: `Highest Performing Column: ${maxCol}`,
+          description: `"${maxCol}" shows exceptional performance with max value ${maxValue.toFixed(2)} (${performancePercent}% above average)`,
           impact: 'high',
-          value: '+45%',
+          value: `+${performancePercent}%`,
           icon: Award,
           color: 'from-green-500 to-emerald-600',
-        },
-        {
+        });
+
+        // Trend insight - growth analysis
+        const firstColStats = calculateStats(data, firstNumCol);
+        const firstValues = data.rows.slice(0, 10).map(r => parseFloat(r[firstNumCol])).filter(v => !isNaN(v));
+        const lastValues = data.rows.slice(-10).map(r => parseFloat(r[firstNumCol])).filter(v => !isNaN(v));
+        const firstAvg = firstValues.reduce((a, b) => a + b, 0) / firstValues.length;
+        const lastAvg = lastValues.reduce((a, b) => a + b, 0) / lastValues.length;
+        const growthPercent = ((lastAvg - firstAvg) / firstAvg * 100).toFixed(0);
+        const trendDirection = lastAvg > firstAvg ? 'positive' : 'negative';
+
+        generatedInsights.push({
           id: 2,
           type: 'trend',
-          title: 'Positive Growth Trend',
-          description: 'Revenue has increased by 38% over the last 6 months, showing strong upward momentum',
+          title: `${trendDirection === 'positive' ? 'Positive' : 'Negative'} Growth Trend in ${firstNumCol}`,
+          description: `"${firstNumCol}" has ${trendDirection === 'positive' ? 'increased' : 'decreased'} by ${Math.abs(parseFloat(growthPercent))}% comparing first and last 10 records`,
           impact: 'high',
-          value: '+38%',
-          icon: TrendingUp,
-          color: 'from-blue-500 to-indigo-600',
-        },
-        {
-          id: 3,
-          type: 'anomaly',
-          title: 'Anomaly Detected',
-          description: 'Unusual spike in March sales data detected - investigate potential data quality issues',
-          impact: 'medium',
-          value: 'Alert',
-          icon: AlertCircle,
-          color: 'from-orange-500 to-red-600',
-        },
-        {
-          id: 4,
-          type: 'opportunity',
-          title: 'Growth Opportunity',
-          description: 'Books category is underperforming - consider marketing campaigns to boost sales',
-          impact: 'medium',
-          value: 'Action',
-          icon: Target,
-          color: 'from-purple-500 to-pink-600',
-        },
-        {
+          value: `${parseFloat(growthPercent) > 0 ? '+' : ''}${growthPercent}%`,
+          icon: trendDirection === 'positive' ? TrendingUp : TrendingDown,
+          color: trendDirection === 'positive' ? 'from-blue-500 to-indigo-600' : 'from-orange-500 to-red-600',
+        });
+
+        // Anomaly detection
+        let totalAnomalies = 0;
+        numericCols.slice(0, 3).forEach(col => {
+          const stats = calculateStats(data, col);
+          const values = data.rows.map(row => parseFloat(row[col])).filter(val => !isNaN(val));
+          const stdDev = Math.sqrt(
+            values.map(val => Math.pow(val - stats.avg, 2)).reduce((a, b) => a + b, 0) / values.length
+          );
+          const anomalies = data.rows.filter(row => {
+            const val = parseFloat(row[col]);
+            return !isNaN(val) && Math.abs(val - stats.avg) > 2 * stdDev;
+          });
+          totalAnomalies += anomalies.length;
+        });
+
+        if (totalAnomalies > 0) {
+          generatedInsights.push({
+            id: 3,
+            type: 'anomaly',
+            title: 'Anomalies Detected',
+            description: `Found ${totalAnomalies} anomalies across numeric columns - values beyond 2 standard deviations from mean`,
+            impact: 'medium',
+            value: `${totalAnomalies} alerts`,
+            icon: AlertCircle,
+            color: 'from-orange-500 to-red-600',
+          });
+        }
+
+        // Data quality insight
+        let missingCount = 0;
+        data.rows.forEach(row => {
+          data.columnNames.forEach(col => {
+            if (row[col] === '' || row[col] === null || row[col] === undefined) {
+              missingCount++;
+            }
+          });
+        });
+
+        if (missingCount > 0) {
+          const missingPercent = ((missingCount / (data.rows.length * data.columnNames.length)) * 100).toFixed(1);
+          generatedInsights.push({
+            id: 4,
+            type: 'opportunity',
+            title: 'Data Quality Opportunity',
+            description: `${missingCount} missing values detected (${missingPercent}% of total cells) - consider data cleaning`,
+            impact: 'medium',
+            value: 'Action',
+            icon: Target,
+            color: 'from-purple-500 to-pink-600',
+          });
+        }
+
+        // Dataset size insight
+        const dataQuality = data.totalRows > 1000 ? 'excellent' : data.totalRows > 500 ? 'good' : 'moderate';
+        generatedInsights.push({
           id: 5,
           type: 'trend',
-          title: 'Seasonal Pattern',
-          description: 'Data shows strong seasonal patterns - peak performance in Q2',
+          title: 'Dataset Size Analysis',
+          description: `Dataset contains ${data.totalRows} records with ${dataQuality} sample size for statistical analysis`,
           impact: 'low',
-          value: 'Info',
+          value: dataQuality,
           icon: Zap,
           color: 'from-yellow-500 to-orange-500',
-        },
-        {
-          id: 6,
-          type: 'performance',
-          title: 'Customer Retention',
-          description: 'Customer retention rate improved by 22% compared to previous quarter',
-          impact: 'high',
-          value: '+22%',
-          icon: Award,
-          color: 'from-teal-500 to-cyan-600',
-        },
-      ];
+        });
+
+        // Correlation opportunity
+        if (numericCols.length >= 2) {
+          generatedInsights.push({
+            id: 6,
+            type: 'performance',
+            title: 'Correlation Analysis Available',
+            description: `${numericCols.length} numeric columns detected - advanced correlation analysis is possible`,
+            impact: 'high',
+            value: `${numericCols.length} cols`,
+            icon: Award,
+            color: 'from-teal-500 to-cyan-600',
+          });
+        }
+
+        // Category distribution (if we have categorical data)
+        const categoricalCols = data.columnNames.filter(c => !numericCols.includes(c));
+        if (categoricalCols.length > 0) {
+          const firstCatCol = categoricalCols[0];
+          const categoryCount: Record<string, number> = {};
+          data.rows.forEach(row => {
+            const val = row[firstCatCol];
+            if (val) {
+              categoryCount[val] = (categoryCount[val] || 0) + 1;
+            }
+          });
+
+          const catData = Object.entries(categoryCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([category, value]) => ({ category, value }));
+
+          setCategoryData(catData);
+        }
+      }
+
       setInsights(generatedInsights);
       setIsGenerating(false);
     }, 2000);
   };
-
-  useEffect(() => {
-    generateInsights();
-  }, []);
 
   const getImpactBadge = (impact: string) => {
     switch (impact) {
@@ -123,6 +255,43 @@ export function AIInsightsPage() {
     }
   };
 
+  if (!dataset) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <Brain className="h-8 w-8 text-indigo-600" />
+            AI Data Insights
+          </h1>
+          <p className="text-gray-600 mt-2">
+            AI-powered insights automatically generated from your data
+          </p>
+        </div>
+
+        <Card className="shadow-md border-orange-200 bg-orange-50">
+          <CardContent className="py-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <AlertCircle className="h-8 w-8 text-orange-600" />
+                <div>
+                  <p className="text-lg font-semibold text-orange-900">No Dataset Found</p>
+                  <p className="text-sm text-orange-700">Please upload a CSV file to generate AI insights</p>
+                </div>
+              </div>
+              <Button
+                onClick={() => navigate('/upload')}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                <UploadIcon className="h-4 w-4 mr-2" />
+                Upload Data
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -133,11 +302,11 @@ export function AIInsightsPage() {
             AI Data Insights
           </h1>
           <p className="text-gray-600 mt-2">
-            AI-powered insights automatically generated from your data
+            AI-powered insights from {dataset.filename}
           </p>
         </div>
         <button
-          onClick={generateInsights}
+          onClick={() => generateInsights(dataset)}
           disabled={isGenerating}
           className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
         >
@@ -251,54 +420,65 @@ export function AIInsightsPage() {
       </div>
 
       {/* Trend Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Trend */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-indigo-600" />
-              Revenue Growth Trend
-            </CardTitle>
-            <CardDescription>Monthly revenue and growth patterns</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} />
-                <Line type="monotone" dataKey="growth" stroke="#8b5cf6" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {trendData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Data Trend */}
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-indigo-600" />
+                Data Trends
+              </CardTitle>
+              <CardDescription>Trends from your uploaded dataset</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={trendData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {Object.keys(trendData[0] || {}).filter(k => k !== 'month').map((key, index) => (
+                    <Line
+                      key={key}
+                      type="monotone"
+                      dataKey={key}
+                      stroke={index === 0 ? "#6366f1" : "#8b5cf6"}
+                      strokeWidth={2}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
 
-        {/* Category Performance */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-purple-600" />
-              Category Performance
-            </CardTitle>
-            <CardDescription>Performance breakdown by category</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={categoryData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="category" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="value" fill="#8b5cf6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Category Distribution */}
+          {categoryData.length > 0 && (
+            <Card className="shadow-md">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-purple-600" />
+                  Category Distribution
+                </CardTitle>
+                <CardDescription>Top categories in your dataset</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={categoryData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="category" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="value" fill="#8b5cf6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
     </div>
   );
 }

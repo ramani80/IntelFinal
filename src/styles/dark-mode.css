@@ -1,0 +1,60 @@
+/* Dark mode enhancements for better readability */
+
+.dark {
+  /* Override text colors for better dark mode visibility */
+  color-scheme: dark;
+}
+
+/* Headings in dark mode */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4 {
+  @apply text-white;
+}
+
+/* Paragraphs and general text */
+.dark p {
+  @apply text-gray-300;
+}
+
+/* Make sure cards have proper background in dark mode */
+.dark [data-slot="card"] {
+  @apply bg-gray-900 border-gray-800;
+}
+
+/* Table improvements */
+.dark table {
+  @apply text-gray-300;
+}
+
+.dark thead {
+  @apply bg-gray-800;
+}
+
+.dark tbody tr {
+  @apply border-gray-800;
+}
+
+.dark tbody tr:hover {
+  @apply bg-gray-800;
+}
+
+/* Button improvements */
+.dark button {
+  @apply text-white;
+}
+
+/* Input improvements */
+.dark input:not([type="checkbox"]):not([type="radio"]) {
+  @apply bg-gray-800 border-gray-700 text-white placeholder-gray-400;
+}
+
+.dark select {
+  @apply bg-gray-800 border-gray-700 text-white;
+}
+
+/* Ensure gradient text remains visible */
+.dark .bg-clip-text {
+  @apply text-transparent;
+}

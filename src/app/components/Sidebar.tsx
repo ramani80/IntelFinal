@@ -21,9 +21,9 @@ export function Sidebar() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="w-64 bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 text-white h-screen flex flex-col shadow-xl sticky top-0">
+    <div className="w-64 bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 dark:from-gray-950 dark:via-gray-950 dark:to-gray-900 text-white min-h-screen flex flex-col shadow-xl">
       {/* Logo & Branding */}
-      <div className="p-6 border-b border-gray-700">
+      <div className="p-6 border-b border-gray-700 dark:border-gray-800">
         <div className="flex items-center gap-3">
           <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2.5 rounded-xl shadow-lg">
             <Brain className="h-7 w-7" />
@@ -61,8 +61,8 @@ export function Sidebar() {
       </div>
 
       {/* User Profile Section */}
-      <div className="p-4 border-t border-gray-700">
-        <div className="mb-3 px-4 py-3 bg-gray-800 rounded-lg">
+      <div className="p-4 border-t border-gray-700 dark:border-gray-800">
+        <div className="mb-3 px-4 py-3 bg-gray-800 dark:bg-gray-900 rounded-lg">
           <p className="text-xs text-gray-400 mb-1">Logged in as</p>
           <p className="text-sm font-medium truncate">{user?.name}</p>
           <p className="text-xs text-gray-500 truncate">{user?.email}</p>

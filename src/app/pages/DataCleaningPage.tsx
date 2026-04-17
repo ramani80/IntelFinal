@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle, XCircle, Sparkles, Trash2, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -18,6 +18,17 @@ export function DataCleaningPage() {
   const [issues, setIssues] = useState<DataIssue[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFixed, setIsFixed] = useState(false);
+
+  // Load existing dataset from localStorage on mount
+  useEffect(() => {
+    const storedDataset = localStorage.getItem('dataset');
+    if (storedDataset) {
+      const dataset = JSON.parse(storedDataset);
+      setData(dataset.rows);
+      setHeaders(dataset.columnNames);
+      analyzeData(dataset.rows);
+    }
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];

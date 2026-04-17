@@ -30,19 +30,20 @@ export function ChatbotPage() {
   useEffect(() => {
     const storedDataset = localStorage.getItem('dataset');
     if (storedDataset) {
-      const parsedDataset = JSON.parse(storedDataset);
-      setDataset(parsedDataset);
-      
-      const welcomeMessage = `👋 Hello! I'm your AI Analytics Assistant for IntelliBoard.\n\nI can see you've uploaded **${parsedDataset.filename}**. I can help you:\n\n✨ Summarize your dataset\n📊 Calculate statistics (averages, min, max)\n📈 Analyze trends and patterns\n🔍 Detect anomalies and outliers\n💡 Generate insights and recommendations\n🎯 Answer specific questions about your data\n\nTry asking: "Summarize my dataset" or "What are the key insights?"`;
-
-      setMessages([
-        {
-          role: 'assistant',
-          content: welcomeMessage,
-          timestamp: new Date().toLocaleTimeString(),
-        },
-      ]);
+      setDataset(JSON.parse(storedDataset));
     }
+
+    const welcomeMessage = storedDataset 
+      ? `👋 Hello! I'm your AI Analytics Assistant for IntelliBoard.\n\nI can see you've uploaded **${JSON.parse(storedDataset).filename}**. I can help you:\n\n✨ Summarize your dataset\n📊 Calculate statistics (averages, min, max)\n📈 Analyze trends and patterns\n🔍 Detect anomalies and outliers\n💡 Generate insights and recommendations\n🎯 Answer specific questions about your data\n\nTry asking: "Summarize my dataset" or "What are the key insights?"`
+      : `👋 Hello! I'm your AI Analytics Assistant for IntelliBoard.\n\n⚠️ **No dataset found!** Please upload a CSV file first.\n\nOnce you upload data, I can help you with:\n• Dataset summaries\n• Statistical analysis\n• Trend detection\n• Anomaly identification\n• Insights generation\n• And much more!\n\nGo to **Upload Data** to get started!`;
+
+    setMessages([
+      {
+        role: 'assistant',
+        content: welcomeMessage,
+        timestamp: new Date().toLocaleTimeString(),
+      },
+    ]);
   }, []);
 
   useEffect(() => {
@@ -350,161 +351,166 @@ export function ChatbotPage() {
   ];
 
   return (
-    <div className="flex flex-col h-full max-w-5xl mx-auto w-full gap-4 overflow-hidden">
+    <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex-shrink-0">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <MessageSquare className="h-7 w-7 text-indigo-600" />
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <MessageSquare className="h-8 w-8 text-indigo-600" />
           AI Chatbot
         </h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-gray-600 mt-2">
           Ask questions about your uploaded dataset and get intelligent AI-powered answers
         </p>
       </div>
 
-      {/* Dataset Status & Chat Interface */}
-      <div className="flex-1 min-h-0 flex flex-col gap-4">
-        {dataset ? (
-          <>
-            <Card className="shadow-sm border-green-200 bg-green-50/50 flex-shrink-0">
-              <CardContent className="py-2 px-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Database className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="text-sm font-semibold text-green-900">Dataset Loaded: {dataset.filename}</p>
-                      <p className="text-xs text-green-700">
-                        {dataset.totalRows.toLocaleString()} rows × {dataset.columnNames.length} columns
-                      </p>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => navigate('/upload')}
-                    className="text-green-700 hover:text-green-800 hover:bg-green-100 h-8"
-                  >
-                    <UploadIcon className="h-3.5 w-3.5 mr-2" />
-                    Change Data
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg flex-1 flex flex-col min-h-0 border-gray-200">
-              <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/50">
-                  {messages.map((message, index) => (
-                    <div
-                      key={index}
-                      className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      {message.role === 'assistant' && (
-                        <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-2 rounded-xl h-9 w-9 flex items-center justify-center flex-shrink-0 shadow-md">
-                          <Bot className="h-5 w-5 text-white" />
-                        </div>
-                      )}
-                      <div className={`flex flex-col gap-1.5 ${message.role === 'user' ? 'max-w-[80%]' : 'max-w-[85%]'}`}>
-                        <div
-                          className={`rounded-2xl px-5 py-3 shadow-sm ${
-                            message.role === 'user'
-                              ? 'bg-indigo-600 text-white'
-                              : 'bg-white text-gray-900 border border-gray-100'
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap text-[15px] leading-relaxed font-sans">{message.content}</p>
-                        </div>
-                        <span className={`text-[10px] text-gray-400 px-2 font-medium uppercase tracking-wider ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
-                          {message.timestamp}
-                        </span>
-                      </div>
-                      {message.role === 'user' && (
-                        <div className="bg-indigo-100 p-2 rounded-xl h-9 w-9 flex items-center justify-center flex-shrink-0 border border-indigo-200">
-                          <User className="h-5 w-5 text-indigo-700" />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {isTyping && (
-                    <div className="flex gap-4 justify-start">
-                      <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-2 rounded-xl h-9 w-9 flex items-center justify-center flex-shrink-0 shadow-md">
-                        <Bot className="h-5 w-5 text-white animate-pulse" />
-                      </div>
-                      <div className="bg-white border border-gray-100 rounded-2xl px-5 py-3 shadow-sm">
-                        <div className="flex gap-1.5">
-                          <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                          <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                          <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input Area */}
-                <div className="border-t bg-white p-4">
-                  <form onSubmit={handleSubmit} className="flex gap-3 max-w-4xl mx-auto">
-                    <Input
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      placeholder="Ask a question about your dataset..."
-                      className="flex-1 bg-gray-50 border-gray-200 focus-visible:ring-indigo-500 h-11"
-                    />
-                    <Button 
-                      type="submit" 
-                      size="icon"
-                      disabled={!input.trim()}
-                      className="bg-indigo-600 hover:bg-indigo-700 h-11 w-11 transition-all shadow-md active:scale-95"
-                    >
-                      <Send className="h-5 w-5" />
-                    </Button>
-                  </form>
-                  
-                  {/* Quick Questions Suggestions Area */}
-                  <div className="mt-4 flex flex-wrap gap-2 justify-center max-w-4xl mx-auto">
-                    {quickQuestions.map((q, index) => {
-                      const Icon = q.icon;
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => setInput(q.query)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium hover:bg-indigo-50 hover:text-indigo-600 transition-colors border border-transparent hover:border-indigo-100"
-                        >
-                          <Icon className="h-3 w-3" />
-                          {q.text}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center p-6">
-            <Card className="max-w-md w-full shadow-xl border-indigo-100 bg-white p-8 text-center">
-              <div className="flex justify-center mb-6">
-                <div className="p-4 bg-indigo-50 rounded-full">
-                  <Bot className="h-12 w-12 text-indigo-600" />
+      {/* Dataset Status */}
+      {dataset ? (
+        <Card className="shadow-md border-green-200 bg-green-50">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <Database className="h-6 w-6 text-green-600" />
+              <div>
+                <p className="font-semibold text-green-900">Dataset Loaded: {dataset.filename}</p>
+                <p className="text-sm text-green-700">
+                  {dataset.totalRows} rows × {dataset.columnNames.length} columns
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="shadow-md border-orange-200 bg-orange-50">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-6 w-6 text-orange-600" />
+                <div>
+                  <p className="font-semibold text-orange-900">No Dataset Found</p>
+                  <p className="text-sm text-orange-700">Please upload a CSV file to start chatting</p>
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-3">Welcome to AI Chatbot</h2>
-              <p className="text-gray-600 mb-8">
-                Your intelligent data analysis assistant. Please upload a dataset first to start a conversation and get AI-powered insights.
-              </p>
               <Button 
                 onClick={() => navigate('/upload')}
-                size="lg"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 h-12"
+                className="bg-orange-600 hover:bg-orange-700"
               >
-                <UploadIcon className="h-5 w-5 mr-2" />
-                Upload Dataset to Start
+                <UploadIcon className="h-4 w-4 mr-2" />
+                Upload Data
               </Button>
-            </Card>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Chat Interface */}
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-indigo-600" />
+            Chat with AI Assistant
+          </CardTitle>
+          <CardDescription>
+            Powered by IntelliBoard AI - Get instant insights about your data
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="h-[500px] overflow-y-auto p-6 space-y-4 bg-gray-50">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {message.role === 'assistant' && (
+                  <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-2 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <Bot className="h-5 w-5 text-white" />
+                  </div>
+                )}
+                <div className="flex flex-col gap-1 max-w-[75%]">
+                  <div
+                    className={`rounded-2xl px-5 py-3 shadow-md ${
+                      message.role === 'user'
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white'
+                        : 'bg-white text-gray-900 border border-gray-200'
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+                  </div>
+                  <span className={`text-xs text-gray-500 px-2 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
+                    {message.timestamp}
+                  </span>
+                </div>
+                {message.role === 'user' && (
+                  <div className="bg-indigo-100 p-2 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0">
+                    <User className="h-5 w-5 text-indigo-700" />
+                  </div>
+                )}
+              </div>
+            ))}
+            {isTyping && (
+              <div className="flex gap-3 justify-start">
+                <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-2 rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0 shadow-lg">
+                  <Bot className="h-5 w-5 text-white animate-pulse" />
+                </div>
+                <div className="bg-white border border-gray-200 rounded-2xl px-5 py-3 shadow-md">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
-        )}
-      </div>
+
+          {/* Input Area */}
+          <div className="border-t bg-white p-4">
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask a question about your dataset..."
+                className="flex-1"
+                disabled={!dataset}
+              />
+              <Button 
+                type="submit" 
+                size="icon"
+                disabled={!dataset}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Questions */}
+      <Card className="shadow-md">
+        <CardHeader>
+          <CardTitle className="text-lg">Quick Questions</CardTitle>
+          <CardDescription>Click any question to ask the AI assistant</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {quickQuestions.map((q, index) => {
+              const Icon = q.icon;
+              return (
+                <Button
+                  key={index}
+                  variant="outline"
+                  onClick={() => setInput(q.query)}
+                  disabled={!dataset}
+                  className="justify-start h-auto py-3"
+                >
+                  <Icon className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="text-sm">{q.text}</span>
+                </Button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
